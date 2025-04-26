@@ -1,23 +1,48 @@
-# ETL Pipeline - Teste Prático
+```markdown
+# ETL Pipeline com FastAPI e PostgreSQL
 
-Este projeto consiste em um pipeline de ETL, utilizando dois bancos PostgreSQL (fonte e alvo), uma API FastAPI para consulta no fonte e um script ETL para processar e transferir os dados para o alvo.
+Este projeto simula um pipeline de ETL onde dados são extraídos de um banco PostgreSQL via API (protegendo o acesso direto), transformados com agregações e carregados em um segundo banco de dados. O objetivo é apresentar uma arquitetura moderna, desacoplada e robusta, utilizando Python, FastAPI, SQLAlchemy e Pandas.
+
+---
 
 ## Pré-requisitos
 
-- Python 3.10+
-- PostgreSQL instalado
-- pgAdmin (opcional, para gerenciar os bancos)
-- pip (gerenciador de pacotes Python)
+⚠️ Python 3.10 ou superior  
+⚠️ PostgreSQL (ex: versão 13+, com acesso via localhost)  
+⚠️ pgAdmin (opcional, para administração dos bancos de dados)
 
-## 1. Configure os bancos de dados
+Siga as instruções para garantir que você tem o ambiente pronto.
 
-### 1.1. Crie dois bancos PostgreSQL: `fonte` e `alvo`
-No pgAdmin ou terminal, crie dois bancos:
-- **fonte**
-- **alvo**
+---
 
-### 1.2. Crie as tabelas
-No banco `fonte`, rode:
+## Visão Geral do Projeto
+
+- **Banco fonte:** contém dados simulados de sensores gravados a cada minuto por 10 dias.
+- **API** (FastAPI): protege o acesso ao banco de dados fonte, fornecendo dados filtrados conforme parâmetro de tempo e variáveis selecionadas.
+- **Banco alvo:** recebe agregações 10-minutais (média, min, max, std) por variável, que são processadas pelo ETL.
+- **Script ETL:** extrai dados via API, executa as transformações e grava no banco de dados alvo.
+- **(Opcional)** Docker para orquestração fácil dos serviços.
+
+---
+
+## Configuração Inicial
+
+### 1. Clone o repositório
+
+```bash
+git clone https://github.com/seu-usuario/seu-repositorio.git
+cd seu-repositorio
+```
+
+### 2. Crie os dois bancos de dados (no pgAdmin ou terminal)
+
+- **Banco fonte:** `fonte`
+- **Banco alvo:** `alvo`
+
+### 3. Crie as tabelas 
+
+No banco **fonte**:
+
 ```sql
 CREATE TABLE data (
   timestamp TIMESTAMP PRIMARY KEY,
@@ -26,7 +51,9 @@ CREATE TABLE data (
   ambient_temperature FLOAT
 );
 ```
-No banco alvo, rode:
+
+No banco **alvo**:
+
 ```sql
 CREATE TABLE signal (
   id SERIAL PRIMARY KEY,
@@ -44,88 +71,161 @@ CREATE TABLE signal_data (
 );
 ```
 
-## 2. Popule o banco fonte com dados aleatórios
-Navegue até a pasta fonte_db:
-``` cd fonte_db ```
+---
 
-Edite load_fonte.py para colocar seu usuário, senha, host e porta corretos:
-```python
-engine = create_engine('postgresql://postgres:SUA_SENHA@localhost:5433/fonte')
+## Populando o Banco Fonte
+
+Acesse o diretório do script:
+```bash
+cd fonte_db
 ```
 
-Instale as dependências (se já não tem):
-```python
+Altere a string de conexão do `load_fonte.py` de acordo com suas credenciais PostgreSQL (usuário/senha/porta).
+
+Instale dependências:
+```bash
 pip install pandas sqlalchemy numpy psycopg2
 ```
 
-Execute o script:
-```python
+Rode o script para povoar a tabela:
+```bash
 python load_fonte.py
 ```
+Após rodar, o banco **fonte** terá 10 dias de dados minutais.
 
-## 3. Crie e popule a tabela 'signal' no banco alvo
-Navegue até a pasta alvo_db:
-```python
+---
+
+## Criando e povoando a tabela de sinais no banco alvo
+
+Acesse o diretório:
+```bash
 cd ../alvo_db
 ```
 
-Edite create_alvo.py para colocar seu usuário, senha, host e porta corretos.
-Execute o script:
-```python
+Ajuste a string de conexão do `create_alvo.py` conforme suas credenciais.
+
+Execute o script para criar as tabelas e inserir os sinais (`wind_speed` e `power`):
+
+```bash
 python create_alvo.py
 ```
 
-## 4. Rode a API FastAPI
-Navegue até a pasta onde está seu main.py (geralmente api_fonte):
-```python
+---
+
+## Subindo a API FastAPI
+
+Vá para o diretório da API:
+
+```bash
 cd ../api_fonte
 ```
-Instale as dependências:
-```python
+
+Instale dependências necessárias:
+
+```bash
 pip install fastapi uvicorn sqlalchemy pandas psycopg2
 ```
 
-Rode a API:
-```python
+**Inicie a API:**
+
+```bash
 python -m uvicorn main:app --reload --port 8000
 ```
 
-Acesse a documentação interativa da API:
-```
-http://localhost:8000/docs
-```
+Acesse a documentação interativa:  
+[http://localhost:8000/docs](http://localhost:8000/docs)
 
-## 5. Rode o script ETL
+Você pode testar a rota `/data`, passando parâmetros como:
 
-Abra outro terminal, navegue até a pasta etl:
-```
+- start: `2023-01-01T00:00:00`
+- end: `2023-01-02T00:00:00`
+- variables: `wind_speed`, `power`
+
+---
+
+## Executando o ETL
+
+Abra **outro terminal** e acesse a pasta do ETL:
+
+```bash
 cd ../etl
 ```
 
-Instale as dependências (se necessário):
-```
+Instale as dependências:
+
+```bash
 pip install httpx pandas sqlalchemy psycopg2
 ```
 
-Execute o ETL informando uma data dentro do intervalo dos dados (exemplo):
-```
+Edite o script `etl.py` para garantir que a URL da API, usuário, senha e porta do banco alvo estão corretos.
+
+Execute o ETL informando uma data presente na base (exemplo):
+
+```bash
 python etl.py
 ```
 
-Você também pode editar o script para mudar a data de referência.
+O script faz:
 
+1. Consulta a API por um período de 1 dia.
+2. Agrega as variáveis `wind_speed` e `power` a cada 10 minutos.
+3. Escreve esses dados agregados no banco `alvo`, tabela `signal_data`.
 
-## 6. Confira os resultados
+---
 
-Abra o banco 'alvo' no pgAdmin ou Query Tool e execute:
+## Conferindo os Resultados
+
+Abra o **pgAdmin** na base `alvo`.  
+Execute:
+
 ```sql
 SELECT * FROM signal_data LIMIT 10;
 ```
 
-Você verá os dados processados de wind_speed e power, agregados a cada 10 minutos.
+Você deverá ver agregações 10-minutais de cada sinal.
 
+---
 
-## Observações
-- Deixe a API rodando enquanto executa o ETL.
--Se quiser modificar datas, faça no ETL ou na consulta da API.
--Para outras dúvidas, consulte os comentários nos scripts ou abra uma issue.
+## Estrutura de Pastas
+
+```
+etl-pipeline/
+├── fonte_db/
+│   └── load_fonte.py
+├── alvo_db/
+│   └── create_alvo.py
+│   └── models.py
+├── api_fonte/
+│   ├── main.py
+├── etl/
+│   └── etl.py
+├── README.md
+```
+
+---
+
+## Observações Finais
+
+- Deixe a API rodando durante a execução do ETL.
+- Para processar outros dias, altere a data no script ETL.
+- Certifique-se de editar as strings de conexão para refletir seu usuário, senha e porta!
+- Se desejar rodar tudo via Docker, adicione os arquivos de orquestração posteriormente.
+
+---
+
+## Exemplo de uso
+
+1. Rode a API em um terminal.
+2. Em outro terminal, execute o ETL.
+3. Verifique os dados agregados no banco alvo.
+
+---
+
+## Funcionamento resumido
+
+- **Banco fonte** → **API FastAPI** → **ETL (Python)** → **Banco alvo**
+
+---
+
+Pronto! Pipeline testado e funcional.
+```
