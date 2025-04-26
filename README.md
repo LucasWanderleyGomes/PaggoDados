@@ -126,6 +126,6 @@ Você verá os dados processados de wind_speed e power, agregados a cada 10 minu
 
 
 ## Observações
-# Deixe a API rodando enquanto executa o ETL.
-# Se quiser modificar datas, faça no ETL ou na consulta da API.
-# Para outras dúvidas, consulte os comentários nos scripts ou abra uma issue.
+- Deixe a API rodando enquanto executa o ETL.
+-Se quiser modificar datas, faça no ETL ou na consulta da API.
+-Para outras dúvidas, consulte os comentários nos scripts ou abra uma issue.
