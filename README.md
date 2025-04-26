@@ -30,7 +30,7 @@ Siga as instruções para garantir que você tem o ambiente pronto.
 ### 1. Clone o repositório
 
 ```bash
-git clone https://github.com/seu-usuario/seu-repositorio.git
+git clone https://github.com/LucasWanderleyGomes/PaggoDados/tree/Main.git
 cd seu-repositorio
 ```
 
