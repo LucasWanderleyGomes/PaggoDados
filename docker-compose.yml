@@ -1,0 +1,108 @@
+services:
+  db_fonte:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=fonte
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    # ports:
+    #   - "5433:5432"  # Comentado para evitar conexões externas
+    volumes:
+      - ./banco-fonte/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./banco-fonte/dados.sql:/docker-entrypoint-initdb.d/dados.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "fonte", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  db_alvo:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=alvo
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+    # ports:
+    #   - "5434:5432"  
+    volumes:
+      - ./banco-alvo/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready", "-d", "alvo", "-U", "postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  app:
+    build: ./app
+    ports:
+      - "8000:8000"
+    depends_on:
+      db_fonte:
+        condition: service_healthy
+    environment:
+      - DB_FONTE_USER=postgres
+      - DB_FONTE_PASSWORD=postgres
+      - DB_FONTE_HOST=db_fonte
+      - DB_FONTE_PORT=5432
+      - DB_FONTE_NAME=fonte
+      - DB_ALVO_USER=postgres
+      - DB_ALVO_PASSWORD=postgres
+      - DB_ALVO_HOST=db_alvo
+      - DB_ALVO_PORT=5432
+      - DB_ALVO_NAME=alvo
+    healthcheck:
+      test: ["CMD-SHELL", "curl", "-f", "http://localhost:8000/healthcheck"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  etl:
+    build: ./etl
+    depends_on:
+      app:
+        condition: service_healthy
+      db_alvo:
+        condition: service_healthy
+      db_fonte:
+        condition: service_healthy
+    environment:
+      - DB_FONTE_USER=postgres
+      - DB_FONTE_PASSWORD=postgres
+      - DB_FONTE_HOST=db_fonte
+      - DB_FONTE_PORT=5432
+      - DB_FONTE_NAME=fonte
+      - DB_ALVO_USER=postgres
+      - DB_ALVO_PASSWORD=postgres
+      - DB_ALVO_HOST=db_alvo
+      - DB_ALVO_PORT=5432
+      - DB_ALVO_NAME=alvo
+    restart: unless-stopped
+    command: ["bash", "-c", "python etl.py && tail -f /dev/null"]  # Mantém o contêiner ativo após execução
+
+  dagster:
+    build: ./dagster
+    ports:
+      - "3000:3000"  # Porta para acessar a interface web do Dagster
+    depends_on:
+      db_alvo:
+        condition: service_healthy
+      db_fonte:
+        condition: service_healthy
+      app:
+        condition: service_healthy
+    environment:
+      - DB_FONTE_USER=postgres
+      - DB_FONTE_PASSWORD=postgres
+      - DB_FONTE_HOST=db_fonte
+      - DB_FONTE_PORT=5432
+      - DB_FONTE_NAME=fonte
+      - DB_ALVO_USER=postgres
+      - DB_ALVO_PASSWORD=postgres
+      - DB_ALVO_HOST=db_alvo
+      - DB_ALVO_PORT=5432
+      - DB_ALVO_NAME=alvo
+    restart: unless-stopped
+    command: ["dagster", "dev", "-h", "0.0.0.0", "-p", "3000"]  # Inicia o Dagster no modo de desenvolvimento
