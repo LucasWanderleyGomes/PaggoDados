@@ -1,7 +1,0 @@
-
-storage:
-  local:
-    config:
-      base_dir: /dagster/storage
-run_coordinator:
-  max_concurrent_runs: 1
