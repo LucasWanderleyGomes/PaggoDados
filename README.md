@@ -1,4 +1,4 @@
-```markdown
+
 # ETL Pipeline com FastAPI e PostgreSQL
 
 Este projeto simula um pipeline de ETL onde dados são extraídos de um banco PostgreSQL via API (protegendo o acesso direto), transformados com agregações e carregados em um segundo banco de dados. O objetivo é apresentar uma arquitetura moderna, desacoplada e robusta, utilizando Python, FastAPI, SQLAlchemy e Pandas.
